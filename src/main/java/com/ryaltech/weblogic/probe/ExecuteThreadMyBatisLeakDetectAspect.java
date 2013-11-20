@@ -9,12 +9,19 @@ import org.apache.log4j.Logger;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 
-
-
+/**
+ * This aspect was developed to log when problem described in mybatis spring bug
+ * 18 {@link https://github.com/mybatis/spring/issues/18} occurs
+ * 
+ * @author rykov
+ * 
+ */
 @Aspect
 public class ExecuteThreadMyBatisLeakDetectAspect {
 
-	private static Logger logger = Logger.getLogger(ExecuteThreadMyBatisLeakDetectAspect.class);
+	private static Logger logger = Logger
+			.getLogger(ExecuteThreadMyBatisLeakDetectAspect.class);
+
 	private static void log(String msg, Object... objects) {
 		logger.info(String.format(msg, objects));
 
@@ -26,7 +33,7 @@ public class ExecuteThreadMyBatisLeakDetectAspect {
 	}
 
 	private static void debug(String msg, Object... objects) {
-		
+
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format(msg, objects));
 
@@ -54,7 +61,7 @@ public class ExecuteThreadMyBatisLeakDetectAspect {
 					.forName("java.lang.ThreadLocal$ThreadLocalMap");
 			Field tableField = threadLocalMapClass.getDeclaredField("table");
 			tableField.setAccessible(true);
-			if(threadLocalTable == null){
+			if (threadLocalTable == null) {
 				debug("threadLocalTable is null.");
 				return;
 			}
@@ -87,10 +94,9 @@ public class ExecuteThreadMyBatisLeakDetectAspect {
 	}
 
 	@After("execution(void weblogic.work.ExecuteThread.execute(..))")
-	public void logAndCleanThreadLocal()
-			throws Throwable {
-		debug("logAndCleanThreadLocal started");		
-		iterateCurrentThreadLocal(new ThreadLocalFoundCallback() {			
+	public void logAndCleanThreadLocal() throws Throwable {
+		debug("logAndCleanThreadLocal started");
+		iterateCurrentThreadLocal(new ThreadLocalFoundCallback() {
 			@Override
 			public void threadLocalFound(ThreadLocal<?> threadLocal) {
 				if ((threadLocal != null)
@@ -101,17 +107,22 @@ public class ExecuteThreadMyBatisLeakDetectAspect {
 						Map map = (Map) threadLocal.get();
 						if (map != null) {
 							for (Object value : map.values()) {
-								if (value != null && value.getClass().toString().contains("org.mybatis.spring.SqlSessionHolder")) {									
-									error("TRANSACTIONAL RESOURCES WERE NOT CLEANED UP. CLASSLOADER: "+value.getClass().getClassLoader().toString());									
+								if (value != null
+										&& value.getClass()
+												.toString()
+												.contains(
+														"org.mybatis.spring.SqlSessionHolder")) {
+									error("TRANSACTIONAL RESOURCES WERE NOT CLEANED UP. CLASSLOADER: "
+											+ value.getClass().getClassLoader()
+													.toString());
 								}
 							}
 						}
 					}
 					debug("Thread local %s removed", threadLocal);
-            		threadLocal.remove();
+					threadLocal.remove();
 				}
 
-				
 			}
 		});
 
